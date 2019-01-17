@@ -111,7 +111,7 @@ class Bridge extends React.Component {
   popRoute() {
     this.setState((state, _) => ({
       routeCrumbs: state.routeCrumbs.shift()
-    }))
+    }))3
   }
 
   setNetworkType(symbol) {
@@ -237,7 +237,6 @@ class Bridge extends React.Component {
 
             <Footer />
           </Col>
-          <Col className='col-md-1' />
         </Row>
       </Container>
     )
