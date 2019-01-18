@@ -50,7 +50,6 @@ class ViewPoint extends React.Component {
 
           <Form>
             <PointInput
-              autoFocus
               prop-size='lg'
               prop-format='innerLabel'
               className='mono'

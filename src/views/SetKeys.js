@@ -267,7 +267,6 @@ class SetKeys extends React.Component {
 
     const canGenerate =
          state.networkSeed.length === 64
-      && state.networkSeed.length === 64
 
     const canSign = Maybe.Just.hasInstance(state.txn)
     const canApprove = Maybe.Just.hasInstance(state.stx)
@@ -318,7 +317,6 @@ class SetKeys extends React.Component {
               className='mono'
               prop-size='lg'
               prop-format='innerLabel'
-              autoFocus
               value={ state.networkSeed }
               onChange={ this.handleNetworkSeedInput }>
               <InnerLabel>{ 'Network seed' }</InnerLabel>

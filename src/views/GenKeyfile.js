@@ -129,7 +129,6 @@ class GenKeyfile extends React.Component {
               className='mono'
               prop-size='lg'
               prop-format='innerLabel'
-              autoFocus
               value={ networkSeed }
               onChange={ this.handleNetworkSeedInput }>
               <InnerLabel>{ 'Network seed' }</InnerLabel>
