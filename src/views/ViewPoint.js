@@ -62,7 +62,7 @@ class ViewPoint extends React.Component {
                 className={'tr-0 mt-05 mr-0 abs'}
                 patp={pointName}
                 show
-                size={68}
+                size={76}
                 margin={8} />
             </PointInput>
 

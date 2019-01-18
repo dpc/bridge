@@ -4,7 +4,7 @@ import * as azimuth from 'azimuth-js'
 import * as ob from 'urbit-ob'
 
 import { Button, } from '../components/Base'
-import { Row, Col, H1, P, Anchor } from '../components/Base'
+import { Row, Col, H1, P, Anchor, Warning, H3 } from '../components/Base'
 import { InnerLabel, GalaxyInput, AddressInput, ValidatedSigil, ShowBlockie, Form } from '../components/Base'
 import StatelessTransaction from '../components/StatelessTransaction'
 
@@ -13,7 +13,8 @@ import { BRIDGE_ERROR } from '../lib/error'
 import {
   sendSignedTransaction,
   getTxnInfo,
-  canDecodePatp
+  canDecodePatp,
+  fromWei,
 } from '../lib/txn'
 
 import { ROUTE_NAMES } from '../lib/router'
@@ -30,20 +31,6 @@ import {
 } from '../lib/lib'
 
 
-const buttonTriState = status => {
-  if (status === null) return 'blue'
-  if (status === false) return 'yellow'
-  if (status === true) return 'green'
-}
-
-const buttonTriStateText = status => {
-  if (status === null) return 'Confirm Galaxy Availablility'
-  if (status === false) return 'Galaxy is Not Available'
-  if (status === true) return 'Galaxy is Available'
-}
-
-
-
 class CreateGalaxy extends React.Component {
   constructor(props) {
     super(props)
@@ -58,8 +45,8 @@ class CreateGalaxy extends React.Component {
     this.state = {
       galaxyOwner: galaxyOwner,
       galaxyName: '',
-      isAvailable: null,
-      txApproval: false,
+      isAvailable: Maybe.Nothing(),
+      userApproval: false,
       nonce: '',
       gasPrice: '5',
       chainId: '',
@@ -67,16 +54,28 @@ class CreateGalaxy extends React.Component {
       gasLimit: '600000',
       txn: Maybe.Nothing(),
       stx: Maybe.Nothing(),
+      txError: Maybe.Nothing(),
     }
 
+    this.handleGalaxyInput = this.handleGalaxyInput.bind(this)
     this.handleAddressInput = this.handleAddressInput.bind(this)
-    this.handleGalaxyNameInput = this.handleGalaxyNameInput.bind(this)
-    this.confirmAvailability = this.confirmAvailability.bind(this)
+    this.handleConfirmAvailability = this.handleConfirmAvailability.bind(this)
+    // Transaction
+    this.handleCreateUnsignedTxn = this.handleCreateUnsignedTxn.bind(this)
+    this.handleSubmit = this.handleSubmit.bind(this)
+    this.handleSetUserApproval = this.handleSetUserApproval.bind(this)
+    this.handleSetTxn = this.handleSetTxn.bind(this)
+    this.handleSetStx = this.handleSetStx.bind(this)
+    this.handleSetNonce = this.handleSetNonce.bind(this)
+    this.handleSetChainId = this.handleSetChainId.bind(this)
+    this.handleSetGasPrice = this.handleSetGasPrice.bind(this)
+    this.handleSetGasLimit = this.handleSetGasLimit.bind(this)
     this.handleSubmit = this.handleSubmit.bind(this)
   }
 
   componentDidMount() {
     const { props } = this
+
     const addr = props.wallet.matchWith({
       Just: wal => addressFromSecp256k1Public(wal.value.publicKey),
       Nothing: () => {
@@ -84,24 +83,184 @@ class CreateGalaxy extends React.Component {
       }
     })
 
-    // getTxnInfo(props.web3.value, addr).then(txInfo => this.setState(txInfo))
-    props.web3.map(w3 => getTxnInfo(w3, addr)
-      .then(txInfo => this.setState(txInfo))
-    )
+    props.web3.matchWith({
+      Nothing: () => {},
+      Just: (w3) => {
+        const validWeb3 = w3.value
+
+        const getTxMetadata = [
+          validWeb3.eth.getTransactionCount(addr),
+          validWeb3.eth.net.getId(),
+          validWeb3.eth.getGasPrice()
+        ];
+
+        Promise.all(getTxMetadata).then(r => {
+          const txMetadata = {
+            nonce: r[0],
+            chainId: r[1],
+            gasPrice: fromWei(r[2], 'gwei'),
+          };
+
+          this.setState({...txMetadata})
+
+        })
+      }
+    });
+
   }
 
 
-  handleGalaxyNameInput = (galaxyName) => {
-    this.setState({ galaxyName, isAvailable: null })
-    this.clearTransaction()
+
+  handleAddressInput(receivingAddress) {
+    this.setState({ receivingAddress })
+    this.handleClearTxn()
   }
 
-  handleAddressInput = (galaxyOwner) => {
-    this.setState({ galaxyOwner })
-    this.clearTransaction()
+
+
+  handleGalaxyInput(galaxyName) {
+    if (galaxyName.length < 15) {
+      this.setState({
+        galaxyName,
+        isAvailable: Maybe.Nothing()
+      })
+      this.handleClearTxn()
+    }
   }
 
-  createUnsignedTxn = () => {
+
+
+  handleConfirmAvailability() {
+    this.confirmAvailability().then(r => {
+      this.setState({
+        isAvailable: r,
+      })
+    })
+  }
+
+
+
+  handleCreateUnsignedTxn() {
+    const txn = this.createUnsignedTxn()
+    this.setState({ txn })
+  }
+
+
+  handleSetUserApproval(){
+    const {state} = this
+    this.setState({ userApproval: !state.userApproval })
+  }
+
+
+
+  handleSetTxn(txn){
+    this.setState({ txn })
+  }
+
+
+
+  handleSetStx(stx){
+    this.setState({
+      stx,
+      userApproval: false,
+    })
+  }
+
+
+
+  handleSetNonce(nonce){
+    this.setState({ nonce })
+    this.handleClearStx()
+  }
+
+
+
+  handleSetChainId(chainId){
+    this.setState({ chainId })
+    this.handleClearStx()
+  }
+
+
+
+  handleSetGasPrice(gasPrice){
+    this.setState({ gasPrice })
+    this.handleClearStx()
+  }
+
+
+
+  handleSetGasLimit(gasLimit){
+    this.setState({ gasLimit })
+    this.handleClearStx()
+  }
+
+
+
+  handleClearStx() {
+    this.setState({
+      userApproval: false,
+      stx: Maybe.Nothing(),
+    })
+  }
+
+
+
+  handleClearTxn() {
+    this.setState({
+      userApproval: false,
+      txn: Maybe.Nothing(),
+      stx: Maybe.Nothing(),
+    })
+  }
+
+
+
+  handleClearTransaction() {
+    this.setState({
+      userApproval: false,
+      txn: Maybe.Nothing(),
+      stx: Maybe.Nothing(),
+    })
+  }
+
+
+
+  handleSubmit(){
+    const { props, state } = this
+    sendSignedTransaction(props.web3.value, state.stx)
+      .then(sent => {
+        props.setTxnCursor(sent)
+        props.popRoute()
+        props.pushRoute(ROUTE_NAMES.SENT_TRANSACTION)
+      })
+      .catch(err => {
+        // Note that value.value is due to wrapped Maybe.Just + Result.Error
+        this.setState({ txError: Maybe.Just(err.value.value) })
+      })
+  }
+
+
+
+  buttonTriState() {
+    const a = this.state.isAvailable
+    if (Maybe.Nothing.hasInstance(a)) return 'blue'
+    if (a.value === false) return 'yellow'
+    if (a.value === true) return 'green'
+  }
+
+
+
+  buttonTriStateText() {
+    const a = this.state.isAvailable
+    if (Maybe.Nothing.hasInstance(a)) return 'Confirm Availablility'
+    if (a.value === false) return 'Point is Not Available'
+    if (a.value === true) return 'Available'
+  }
+
+
+
+
+  createUnsignedTxn() {
     const { state, props } = this
     if (isValidAddress(state.galaxyOwner) === false) return Maybe.Nothing()
     if (state.isAvailable === false) return Maybe.Nothing()
@@ -123,21 +282,12 @@ class CreateGalaxy extends React.Component {
       state.galaxyOwner
     )
 
-    this.setState({ txn: Maybe.Just(txn) })
+    return Maybe.Just(txn)
   }
 
 
-  handleSubmit = () => {
-    const { props, state } = this
-    sendSignedTransaction(props.web3.value, state.stx)
-      .then(sent => {
-        props.setTxnCursor(sent)
-        props.popRoute()
-        props.pushRoute(ROUTE_NAMES.SENT_TRANSACTION)
-      })
-  }
 
-  confirmAvailability = async () => {
+  async confirmAvailability() {
     const { state, props } = this
 
     if (canDecodePatp(state.galaxyName) === false) {
@@ -154,30 +304,42 @@ class CreateGalaxy extends React.Component {
 
     const galaxyDec = ob.patp2dec(state.galaxyName)
 
-    const currentOwner = await azimuth.azimuth.getOwner(
+    const owner = await azimuth.azimuth.getOwner(
       validContracts,
       galaxyDec
     )
 
-    const available = eqAddr(currentOwner, ETH_ZERO_ADDR)
+    if (eqAddr(owner, ETH_ZERO_ADDR)) return Maybe.Just(true)
 
-    this.setState({ isAvailable: available })
+    return Maybe.Just(false)
+
   }
 
 
-  clearTransaction = () => {
-    this.setState({
-      txApproval: false,
-      txn: Maybe.Nothing(),
-      stx: Maybe.Nothing(),
-    })
-  }
 
   render() {
     const { props, state } = this
 
     const validAddress = isValidAddress(state.galaxyOwner)
     const validGalaxy = isValidGalaxy(state.galaxyName)
+
+    const canGenerate = props.web3.matchWith({
+      Nothing: () => {
+        return validAddress === true &&
+        validGalaxy === true
+      },
+      Just: () => {
+        return validAddress === true &&
+          validGalaxy === true &&
+          state.isAvailable.value === true
+      }
+    })
+
+
+    const canSign = !Maybe.Nothing.hasInstance(state.txn)
+    const canApprove = !Maybe.Nothing.hasInstance(state.stx)
+    const canSend = !Maybe.Nothing.hasInstance(state.stx) && state.userApproval === true
+
 
 
     return (
@@ -201,7 +363,7 @@ class CreateGalaxy extends React.Component {
               autoFocus
               placeholder='e.g. ~zod'
               value={state.galaxyName}
-              onChange={v => this.handleGalaxyNameInput(v)}>
+              onChange={v => this.handleGalaxyInput(v)}>
               <InnerLabel>{ 'Galaxy Name' }</InnerLabel>
               <ValidatedSigil
                 className='tr-0 mt-05 mr-0 abs'
@@ -236,48 +398,57 @@ class CreateGalaxy extends React.Component {
             <Button
               prop-size='lg wide'
               className='mt-8'
-              prop-color={buttonTriState(state.isAvailable)}
+              prop-color={this.buttonTriState()}
               disabled={!validGalaxy}
-              onClick={() => this.confirmAvailability()}>
-              {buttonTriStateText(state.isAvailable)}
+              onClick={() => this.handleConfirmAvailability()}>
+              {this.buttonTriStateText()}
             </Button>
 
             <StatelessTransaction
-              address={state.galaxyOwner}
-              shipName={state.galaxyName}
-              isAvailable={state.isAvailable}
+              // Upper scope
               web3={props.web3}
               contracts={props.contracts}
               wallet={props.wallet}
               walletType={props.walletType}
               // Tx
-              txApproval={state.txApproval}
               txn={state.txn}
               stx={state.stx}
+              // Tx details
               nonce={state.nonce}
               gasPrice={state.gasPrice}
               chainId={state.chainId}
               gasLimit={state.gasLimit}
-              canGenerate={
-                validAddress === true &&
-                validGalaxy === true &&
-                state.isAvailable === true
-              }
-              canSign={!Maybe.Nothing.hasInstance(state.txn)}
-              canSend={!Maybe.Nothing.hasInstance(state.stx)}
+              // Checks
+              userApproval={state.userApproval}
+              canGenerate={ canGenerate }
+              canSign={ canSign }
+              canApprove={ canApprove }
+              canSend={ canSend }
               // Methods
-              createUnsignedTxn={() => this.createUnsignedTxn()}
-              clearTransaction={() => this.clearTransaction()}
-              setApproval={() => this.setState({txApproval: !state.txApproval})}
-              setTxn={txn => this.setState({txn})}
-              setStx={stx => this.setState({stx})}
-              setNonce={nonce => this.setState({nonce})}
-              setChainId={chainId => this.setState({chainId})}
-              setGasPrice={gasPrice => this.setState({gasPrice})}
-              setGasLimit={gasLimit => this.setState({gasLimit})}
+              createUnsignedTxn={this.handleCreateUnsignedTxn}
+              setUserApproval={this.handleSetUserApproval}
+              setTxn={this.handleSetTxn}
+              setStx={this.handleSetStx}
+              setNonce={this.handleSetNonce}
+              setChainId={this.handleSetChainId}
+              setGasPrice={this.handleSetGasPrice}
+              setGasLimit={this.handleSetGasLimit}
               handleSubmit={this.handleSubmit} />
 
           </Form>
+
+          {
+            Maybe.Nothing.hasInstance(state.txError)
+              ? ''
+              : <Warning className={'mt-8'}>
+                  <H3 style={{marginTop: 0, paddingTop: 0}}>
+                    {
+                      'There was an error sending your transaction.'
+                    }
+                  </H3>
+                  { state.txError.value }
+              </Warning>
+          }
         </Col>
       </Row>
     )

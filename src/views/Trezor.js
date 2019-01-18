@@ -10,6 +10,11 @@ import { TREZOR_BASE_PATH } from '../lib/trezor'
 import { ROUTE_NAMES } from '../lib/router'
 
 class Trezor extends React.Component {
+  constructor(props) {
+    super(props)
+    this.handleSubmit = this.handleSubmit.bind(this)
+  }
+
 
   componentDidMount() {
     this.pollDevice()
@@ -35,33 +40,44 @@ class Trezor extends React.Component {
     }
   }
 
+  handleSubmit() {
+    const { props } = this
+    props.popRoute()
+    props.pushRoute(ROUTE_NAMES.SHIPS)
+  }
+
   render() {
-    const { pushRoute, popRoute, wallet } = this.props
+    const { state, props } = this
 
     return (
+      <Row>
+        <Col className={'measure-md'}>
+          <H1>{ 'Authenticate With Your Trezor' }</H1>
 
-        <Row>
-          <Col>
-            <H1>{ 'Authenticate With Your Trezor' }</H1>
-
-            <P>
-              { 'Connect and authenticate to your Trezor.  If the Trezor ' +
-                'popup window does not display, reconnect your Trezor and ' +
-                'navigate back to this page.'
-              }
-            </P>
-
-          <Button
-            disabled={ Maybe.Nothing.hasInstance(wallet) }
-            onClick={
-              () => {
-                popRoute()
-                pushRoute(ROUTE_NAMES.SHIPS)
-              }
+          <P>
+            { 'Connect and authenticate to your Trezor.  If the Trezor ' +
+              'popup window does not display, reconnect your Trezor and ' +
+              'navigate back to this page.'
             }
-          >
-            { 'Continue →' }
-          </Button>
+          </P>
+
+          <Row className={'mt-8 '}>
+            <Button
+              prop-size={'lg wide'}
+              disabled={ Maybe.Nothing.hasInstance(props.wallet) }
+              onClick={ this.handleSubmit }>
+              { 'Continue →' }
+            </Button>
+
+            <Button
+              prop-type={'link'}
+              className={'mt-8'}
+              onClick={ () => props.popRoute() }>
+              { '← Back' }
+            </Button>
+          </Row>
+
+
 
         </Col>
       </Row>
@@ -70,4 +86,3 @@ class Trezor extends React.Component {
 }
 
 export default Trezor
-

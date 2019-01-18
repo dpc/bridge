@@ -20,11 +20,11 @@ const WALLET_NAMES = {
 
 const renderWalletType = (wallet) =>
     wallet === WALLET_NAMES.MNEMONIC
-  ? 'Mnemonic'
+  ? 'BIP39 Mnemonic'
   : wallet === WALLET_NAMES.TICKET
-  ? 'Ticket'
+  ? 'Urbit Master Ticket'
   : wallet === WALLET_NAMES.SHARDS
-  ? 'Ticket Shards'
+  ? 'Urbit Master Ticket (Shards)'
   : wallet === WALLET_NAMES.LEDGER
   ? 'Ledger'
   : wallet === WALLET_NAMES.TREZOR

@@ -11,6 +11,11 @@ import { LEDGER_BASE_PATH } from '../lib/ledger'
 import { ROUTE_NAMES } from '../lib/router'
 
 class Ledger extends React.Component {
+  constructor(props) {
+    super(props)
+
+    this.handleSubmit = this.handleSubmit.bind(this)
+  }
 
   componentDidMount() {
     this.pollDevice()
@@ -45,52 +50,57 @@ class Ledger extends React.Component {
     }
   }
 
+  handleSubmit() {
+    const { props } = this
+    props.popRoute()
+    props.pushRoute(ROUTE_NAMES.SHIPS)
+  }
+
   render() {
-    const { pushRoute, popRoute, wallet } = this.props
-
+    const { state, props } = this
     return (
+      <Row>
+        <Col className={'measure-md'}>
+          <H1>{ 'Authenticate With Your Ledger' }</H1>
 
-        <Row>
-          <Col>
-            <H1>{ 'Authenticate With Your Ledger' }</H1>
+          <H2>{'Running on HTTPS?'}</H2>
 
-            <H2>{'Running on HTTPS?'}</H2>
+          <P>
+            { `Connect and authenticate to your Ledger, and then open the
+              "Ethereum" application. If you're running on older firmware, make sure the browser
+              support" option is turned on.` }
+          </P>
 
-            <P>
-              { `Connect and authenticate to your Ledger, and then open the
-                "Ethereum" application. If you're running on older firmware, make sure the browser
-                support" option is turned on.` }
-            </P>
+          <H2>{'Running on HTTP?'}</H2>
 
+          <P>{`To authenticate and sign transactions with a Ledger, Bridge
+            must be serving over HTTPS on localhost. You can do this via the
+            following:`}</P>
 
-            <H2>{'Running on HTTP?'}</H2>
+          <ol className={'measure-md'}>
+            <li className={'mt-4'}>{'Install'} <a target={'_blank'} href={'https://github.com/FiloSottile/mkcert'}>{'mkcert'}</a></li>
+            <li className={'mt-4'}>{'Install a local certificate authority via '}<code>{'mkcert -install'}</code></li>
+            <li className={'mt-4'}>{'In your '}<code>{'bridge'}</code>{' directory, generate a certificate valid for localhost via '} <code>{'mkcert localhost'}</code>{'.'}
+              {'This will produce two files: '}<code>{'localhost.pem'}</code> {', the local certificate, and '}<code>{'localhost-key.pem'}</code>{', its corresponding private key.'}
+            </li>
+            <li className={'mt-4'}>{'Run '}<code>{'python bridge-https.py'}</code></li>
+          </ol>
 
-            <P>{`To authenticate and sign transactions with a Ledger, Bridge
-              must be serving over HTTPS on localhost. You can do this via the
-              following:`}</P>
+          <Row className={'mt-8 '}>
+            <Button
+              prop-size={'lg wide'}
+              disabled={ Maybe.Nothing.hasInstance(props.wallet) }
+              onClick={ this.handleSubmit }>
+              { 'Continue →' }
+            </Button>
 
-            <ol className={'measure-md'}>
-              <li className={'mt-4'}>{'Install'} <a target={'_blank'} href={'https://github.com/FiloSottile/mkcert'}>{'mkcert'}</a></li>
-              <li className={'mt-4'}>{'Install a local certificate authority via '}<code>{'mkcert -install'}</code></li>
-              <li className={'mt-4'}>{'In your '}<code>{'bridge'}</code>{' directory, generate a certificate valid for localhost via '} <code>{'mkcert localhost'}</code>{'.'}
-                {'This will produce two files: '}<code>{'localhost.pem'}</code> {', the local certificate, and '}<code>{'localhost-key.pem'}</code>{', its corresponding private key.'}
-              </li>
-              <li className={'mt-4'}>{'Run '}<code>{'python bridge-https.py'}</code></li>
-            </ol>
-
-
-          <Button
-            className={'mt-8'}
-            disabled={ Maybe.Nothing.hasInstance(wallet) }
-            onClick={
-              () => {
-                popRoute()
-                pushRoute(ROUTE_NAMES.SHIPS)
-              }
-            }
-          >
-            { 'Continue →' }
-          </Button>
+            <Button
+              prop-type={'link'}
+              className={'mt-8'}
+              onClick={ () => props.popRoute() }>
+              { '← Back' }
+            </Button>
+          </Row>
 
         </Col>
       </Row>
